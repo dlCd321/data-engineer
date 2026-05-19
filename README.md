@@ -334,28 +334,6 @@ A: 完全可以。但请保留对话记录，并能解释最终代码。
    docker run -d --name mysql8 -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 mysql:8
    ```
 2. 新建数据库并把 9 张 CSV 灌进去：
-   ```sql
-   CREATE DATABASE olist DEFAULT CHARACTER SET utf8mb4;
-   ```
-   ```python
-   import pandas as pd
-   from sqlalchemy import create_engine
-
-   engine = create_engine(
-       "mysql+pymysql://root:root@localhost:3306/olist?charset=utf8mb4"
-   )
-
-   tables = ["customers", "geolocation", "order_items", "order_payments",
-             "order_reviews", "orders", "products", "sellers"]
-   for t in tables:
-       df = pd.read_csv(f"data/olist/olist_{t}_dataset.csv")
-       df.to_sql(t, engine, if_exists="replace", index=False, chunksize=10000)
-
-   # 翻译表名称不带 olist_ 前缀
-   df = pd.read_csv("data/olist/product_category_name_translation.csv")
-   df.to_sql("product_category_name_translation", engine,
-             if_exists="replace", index=False)
-   ```
 3. 所有 `.sql` 文件请以 **MySQL 8.0 方言** 为准（窗口函数、`STR_TO_DATE`、`DATE_FORMAT` 等都已可用）。
 
 ## Q2.1 商品类别翻译完整性
