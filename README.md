@@ -1,6 +1,6 @@
 # 数据工程师笔试题
 
-> **总时长**：4 小时 | **总分**：100 分 + 加分题 15 分
+> **总分**：100 分 + 加分题 15 分
 > 
 > **数据集**：
 > - 📦 **Online Retail II**（UCI / Kaggle）：~1.06M 行真实英国电商交易，2009-12 至 2011-12，38+ 国家
@@ -8,11 +8,11 @@
 
 ---
 
-## 📋 考试说明（请务必先读）
+## 📋 笔试说明（请务必先读）
 
 ### 📦 笔试材料地址
 
-GitHub：`https://github.com/Jay-gekko/written-test`（请 Fork 到自己的 GitHub 仓库）
+GitHub：`https://github.com/Jay-gekko/data-engineer`（请 Fork 到自己的 GitHub 仓库）
 
 仓库内容：
 - `README.md` - 本笔试题目
