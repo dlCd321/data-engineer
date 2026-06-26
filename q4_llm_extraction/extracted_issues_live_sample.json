@@ -1,0 +1,640 @@
+{
+  "metadata": {
+    "source": "data/olist/olist_order_reviews_dataset.csv",
+    "filter": "review_score <= 3",
+    "language": "pt-BR",
+    "pipeline_version": "q4-v1",
+    "mode": "live",
+    "provider": "deepseek",
+    "record_count": 22754,
+    "empty_text_count": 8117,
+    "dedup_count": 13592,
+    "route_counts": {
+      "rule": 7554,
+      "small_llm": 4836,
+      "large_llm": 1202
+    },
+    "active_route_counts": {
+      "rule": 10,
+      "small_llm": 10,
+      "large_llm": 10
+    },
+    "method_counts": {
+      "rule": 10,
+      "small_llm": 10,
+      "large_llm": 10
+    },
+    "max_cost_usd": 3.0,
+    "estimated_cost_usd": 0.051561,
+    "actual_cost_usd": null,
+    "estimated_input_tokens": 3250,
+    "estimated_output_tokens": 5700,
+    "actual_input_tokens": 3223,
+    "actual_output_tokens": 10865,
+    "small_model": "deepseek-v4-flash",
+    "large_model": "deepseek-v4-pro",
+    "live_sample_requested": 30,
+    "live_sample_actual": 30,
+    "llm_call_count": 11,
+    "failed_llm_count": 0,
+    "schema_error_count": 0,
+    "evidence_error_count": 0,
+    "budget_exhausted": false
+  },
+  "records": [
+    {
+      "review_id": "15197aa66ff4d0650b5434f1b46cda19",
+      "order_id": "b18dcdf73be66366873cd26c5724d1dc",
+      "review_score": 1,
+      "raw_text": "",
+      "normalized_text_hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+      "issues": [
+        {
+          "category": "general",
+          "subcategory": "negative_low_detail",
+          "evidence": "",
+          "confidence": 0.75
+        }
+      ],
+      "method": "rule",
+      "model": null,
+      "needs_manual_review": true
+    },
+    {
+      "review_id": "373cbeecea8286a2b66c97b1b157ec46",
+      "order_id": "583174fbe37d3d5f0d6661be3aad1786",
+      "review_score": 1,
+      "raw_text": "Não chegou meu produto Péssimo",
+      "normalized_text_hash": "0a5845b3f819391faae50dec25f710f8cc4665a6",
+      "issues": [
+        {
+          "category": "delivery",
+          "subcategory": "not_received",
+          "evidence": "Não chegou meu produto Péssimo",
+          "confidence": 0.95
+        }
+      ],
+      "method": "rule",
+      "model": null,
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "58044bca115705a48fe0e00a21390c54",
+      "order_id": "68e55ca79d04a79f20d4bfc0146f4b66",
+      "review_score": 1,
+      "raw_text": "Sempre compro pela Internet e a entrega ocorre antes do prazo combinado, que acredito ser o prazo máximo. No stark o prazo máximo já se esgotou e ainda não recebi o produto.",
+      "normalized_text_hash": "b15cc87fb2a3b99ef7b56214d190fd875d7db54a",
+      "issues": [
+        {
+          "category": "delivery",
+          "subcategory": "not_received",
+          "evidence": "Sempre compro pela Internet e a entrega ocorre antes do prazo combinado, que acredito ser o prazo máximo. No stark o prazo máximo já se esgotou e ainda não recebi o produto.",
+          "confidence": 0.95
+        },
+        {
+          "category": "delivery",
+          "subcategory": "delay",
+          "evidence": "Sempre compro pela Internet e a entrega ocorre antes do prazo combinado, que acredito ser o prazo máximo. No stark o prazo máximo já se esgotou e ainda não recebi o produto.",
+          "confidence": 0.88
+        }
+      ],
+      "method": "rule",
+      "model": null,
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "e233e51d11511bf30e568c76360ace52",
+      "order_id": "548df2c6e5f089574614894bca78acf5",
+      "review_score": 1,
+      "raw_text": "recebi somente 1 controle Midea Split ESTILO.\r\nFaltou Controle Remoto para Ar Condicionado Consul",
+      "normalized_text_hash": "629a2b4be7f5730f9401c3a29e2eb1bd34341eab",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "missing_parts",
+          "evidence": "recebi somente 1 controle Midea Split ESTILO.\r\nFaltou Controle Remoto para Ar Condicionado Consul",
+          "confidence": 0.86
+        }
+      ],
+      "method": "rule",
+      "model": null,
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "6d06808638ec0701bccd70bc8d462c28",
+      "order_id": "97d2f8fe76f2f253b8291e17b5383884",
+      "review_score": 1,
+      "raw_text": "O produto não chegou no prazo estipulado e causou transtorno, pq programei a viagem de férias do meu filho, baseado no prazo. Moro na Bahia e ele em Cuiabá sozinho. Agora, a casa está vazia.",
+      "normalized_text_hash": "454d6f88d43689bcffb08bcdccd2544e16dc539d",
+      "issues": [
+        {
+          "category": "delivery",
+          "subcategory": "not_received",
+          "evidence": "O produto não chegou no prazo estipulado e causou transtorno, pq programei a viagem de férias do meu filho, baseado no prazo. Moro na Bahia e ele em Cuiabá sozinho. Agora, a casa está vazia.",
+          "confidence": 0.95
+        },
+        {
+          "category": "delivery",
+          "subcategory": "delay",
+          "evidence": "O produto não chegou no prazo estipulado e causou transtorno, pq programei a viagem de férias do meu filho, baseado no prazo. Moro na Bahia e ele em Cuiabá sozinho. Agora, a casa está vazia.",
+          "confidence": 0.88
+        }
+      ],
+      "method": "rule",
+      "model": null,
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "8b230a1373c6dc4bd867099fda1d7039",
+      "order_id": "071251fe3b3493294536f03737a8a679",
+      "review_score": 3,
+      "raw_text": "Eu comprei duas unidades e só recebi uma e agora o que faço?",
+      "normalized_text_hash": "5883b064b44397ac63cacf7624d51020ca7f9087",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "missing_parts",
+          "evidence": "Eu comprei duas unidades e só recebi uma e agora o que faço?",
+          "confidence": 0.86
+        }
+      ],
+      "method": "rule",
+      "model": null,
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "cb2fc3e5711b5ae85e0491ee18af63ed",
+      "order_id": "34e6d418f368f8079ae152bc178bc66a",
+      "review_score": 3,
+      "raw_text": "Produto bom, porém o que veio para mim não condiz com a foto do anúncio.",
+      "normalized_text_hash": "308048ee6af913a1d57d16681b4c64ca91197c1b",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "wrong_item",
+          "evidence": "Produto bom, porém o que veio para mim não condiz com a foto do anúncio.",
+          "confidence": 0.88
+        }
+      ],
+      "method": "rule",
+      "model": null,
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "60c714ed14cef913944a3147094a4742",
+      "order_id": "9ac05114800f02bfaa783bd76842dbe2",
+      "review_score": 1,
+      "raw_text": "Produto muito inferior, mal acabado.",
+      "normalized_text_hash": "38ff0185ad73c2a7c1af2f22e9a446f44908c8fa",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "poor_quality",
+          "evidence": "Produto muito inferior, mal acabado.",
+          "confidence": 0.86
+        }
+      ],
+      "method": "rule",
+      "model": null,
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "0bd4dcc4f6c4621baf37f73495cad8c4",
+      "order_id": "a11cd01ac67beef7e8bf09740d8a35c1",
+      "review_score": 3,
+      "raw_text": "Entrega no prazo",
+      "normalized_text_hash": "380d3aab8d1190b3e60f3f773c542dc2665f7109",
+      "issues": [
+        {
+          "category": "general",
+          "subcategory": "unclear",
+          "evidence": "Entrega no prazo",
+          "confidence": 0.55
+        }
+      ],
+      "method": "rule",
+      "model": null,
+      "needs_manual_review": true
+    },
+    {
+      "review_id": "65dfeb60c40e3cbb0a1838285d86f885",
+      "order_id": "a2714ecbf6eeb3bb9cd7dba6dc1c5e82",
+      "review_score": 1,
+      "raw_text": "Pedi reembolso e sem resposta até momento",
+      "normalized_text_hash": "af9c0995bfb23bf7c57fb49cf5b942877c16ad38",
+      "issues": [
+        {
+          "category": "service",
+          "subcategory": "no_response",
+          "evidence": "Pedi reembolso e sem resposta até momento",
+          "confidence": 0.84
+        },
+        {
+          "category": "service",
+          "subcategory": "refund_problem",
+          "evidence": "Pedi reembolso e sem resposta até momento",
+          "confidence": 0.82
+        }
+      ],
+      "method": "rule",
+      "model": null,
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "9314d6f9799f5bfba510cc7bcd468c01",
+      "order_id": "0dacf04c5ad59fd5a0cc1faa07c34e39",
+      "review_score": 2,
+      "raw_text": "GOSTARIA DE SABER O QUE HOUVE, SEMPRE RECEBI E ESSA COMPRA AGORA ME DECPCIONOU",
+      "normalized_text_hash": "1bd7a807f39522ba8ee02ce60fcf2950006fe1ea",
+      "issues": [
+        {
+          "category": "general",
+          "subcategory": "negative_low_detail",
+          "evidence": "GOSTARIA DE SABER O QUE HOUVE, SEMPRE RECEBI E ESSA COMPRA AGORA ME DECPCIONOU",
+          "confidence": 0.9
+        }
+      ],
+      "method": "small_llm",
+      "model": "deepseek-v4-flash",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "2c5e27fc178bde7ac173c9c62c31b070",
+      "order_id": "0ce9a24111d850192a933fcaab6fbad3",
+      "review_score": 1,
+      "raw_text": "Não gostei ! Comprei gato por lebre",
+      "normalized_text_hash": "829d695d79a13dc386e59a0395148897fbc40ce6",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "wrong_item",
+          "evidence": "Comprei gato por lebre",
+          "confidence": 0.9
+        }
+      ],
+      "method": "small_llm",
+      "model": "deepseek-v4-flash",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "9fd59cd04b42f600df9f25e54082a8d1",
+      "order_id": "3c314f50bc654f3c4e317b055681dff9",
+      "review_score": 1,
+      "raw_text": "Nada de chegar o meu pedido.",
+      "normalized_text_hash": "1c0576d6b840934a2691124e5c4d8d8946099f38",
+      "issues": [
+        {
+          "category": "delivery",
+          "subcategory": "not_received",
+          "evidence": "Nada de chegar o meu pedido.",
+          "confidence": 0.9
+        }
+      ],
+      "method": "small_llm",
+      "model": "deepseek-v4-flash",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "ff722b4c68783a4459a3adb9bb4e1d0d",
+      "order_id": "b8702f50a689621ab21ef200b55a5b8d",
+      "review_score": 3,
+      "raw_text": "Produto chegou, mas meu PC não conseguiu reconhecer as portas USB.",
+      "normalized_text_hash": "592130dc20ef6d38725b3874bdeb84a8e6eafa14",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "defective",
+          "evidence": "meu PC não conseguiu reconhecer as portas USB.",
+          "confidence": 0.9
+        }
+      ],
+      "method": "small_llm",
+      "model": "deepseek-v4-flash",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "72730619a00e0ecdecf0a4ff862d8996",
+      "order_id": "af76a45a10524549102e010f2bd9d3cd",
+      "review_score": 1,
+      "raw_text": "comprei tres pacotes de cinco folhas cada de papel transfer para tecido escuro e so recebi dois",
+      "normalized_text_hash": "7d48606ce9b56569f4942e2acd1d81d0bdd6f40d",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "missing_parts",
+          "evidence": "so recebi dois",
+          "confidence": 0.9
+        }
+      ],
+      "method": "small_llm",
+      "model": "deepseek-v4-flash",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "46d8249ea59101c7288936c3e6f155d7",
+      "order_id": "f25ddb6cd62d720a5d91fff80467930a",
+      "review_score": 3,
+      "raw_text": "Entrega atrasou A entrega foi dividida em duas. Não houve comunicado do loja. Cheguei a pensar que só haviam enviado parte do produto.",
+      "normalized_text_hash": "fa2af74ee167d515d988bcd4d95164dfd2bfda26",
+      "issues": [
+        {
+          "category": "delivery",
+          "subcategory": "delay",
+          "evidence": "Entrega atrasou",
+          "confidence": 0.9
+        }
+      ],
+      "method": "small_llm",
+      "model": "deepseek-v4-flash",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "346317f9aff540395fe46893611854f8",
+      "order_id": "546ffb713086001ce9f0009158f88b73",
+      "review_score": 1,
+      "raw_text": "Não funciona não faz sincronismo",
+      "normalized_text_hash": "2e76c5e0b9daab2fc79230455744633dfd8df17a",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "defective",
+          "evidence": "Não funciona não faz sincronismo",
+          "confidence": 0.9
+        }
+      ],
+      "method": "small_llm",
+      "model": "deepseek-v4-flash",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "487f8ff16eaf366dc7c01652202048c3",
+      "order_id": "d5ba80d74b52c335ae36398d6159e6ee",
+      "review_score": 1,
+      "raw_text": "Chegou apenas uma peça, mas na nota e na garantia constam as duas joias.",
+      "normalized_text_hash": "069ab25d28ea14842b85342f213cf58866c50a0f",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "missing_parts",
+          "evidence": "Chegou apenas uma peça",
+          "confidence": 0.9
+        }
+      ],
+      "method": "small_llm",
+      "model": "deepseek-v4-flash",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "aaab917291fea34988b9a0cb60e0716f",
+      "order_id": "560f7585b57fcc9579460fa21c0d8ec1",
+      "review_score": 1,
+      "raw_text": "Comprei o relógio, unissex e enviaram um relógio feminino, bem menor que as especificações do anúncio.",
+      "normalized_text_hash": "de8287f3618db7e754e0cb764001be5ed53b0e66",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "wrong_item",
+          "evidence": "enviaram um relógio feminino",
+          "confidence": 0.9
+        }
+      ],
+      "method": "small_llm",
+      "model": "deepseek-v4-flash",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "5f938e5f5f2e9a75710b54feeb9ea610",
+      "order_id": "d9ff0185a300435402f043124f530274",
+      "review_score": 1,
+      "raw_text": "Médio A peça não serviu",
+      "normalized_text_hash": "2fd5ffc5b877033321db8b697339deed0e578ece",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "poor_quality",
+          "evidence": "A peça não serviu",
+          "confidence": 0.9
+        }
+      ],
+      "method": "small_llm",
+      "model": "deepseek-v4-flash",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "ae728c1061bf163b4bd256ad9ee0bb83",
+      "order_id": "45c780334bc32cb77559a65c5f171160",
+      "review_score": 1,
+      "raw_text": "Este foi o pedido\r\nBalde Com 128 Peças - Blocos De Montar 2 un - R$ 25,00 cada (NÃO FOI ENTREGUE)\r\nVendido e entregue targaryen\r\nTapete de Eva Nº Letras 36 Peças Crianças 1 un - R$ 35,90 (ESTE FOI ENTREG",
+      "normalized_text_hash": "2b287cafd9c803f5e2341111c66fb2bb0c4d38c7",
+      "issues": [
+        {
+          "category": "delivery",
+          "subcategory": "not_received",
+          "evidence": "(NÃO FOI ENTREGUE)",
+          "confidence": 0.95
+        }
+      ],
+      "method": "large_llm",
+      "model": "deepseek-v4-pro",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "557ae9c16a8ea3909db2fc5a01bc5151",
+      "order_id": "287b045cfe9ba0ed08308efc06c366ae",
+      "review_score": 3,
+      "raw_text": "Suspense Fiz um pedido de 4 garrafas de azeite.Chegaram 2 num dia e as outras 2 quase 48 horas depois.Contato com a loja muito dificil,tanto via e-mail qto por telef.O suspense terminou mas lá não compro mais",
+      "normalized_text_hash": "007216617aeff3506c13047102d069bb08e4815a",
+      "issues": [
+        {
+          "category": "delivery",
+          "subcategory": "delay",
+          "evidence": "Chegaram 2 num dia e as outras 2 quase 48 horas depois",
+          "confidence": 0.95
+        },
+        {
+          "category": "service",
+          "subcategory": "no_response",
+          "evidence": "Contato com a loja muito dificil,tanto via e-mail qto por telef",
+          "confidence": 0.9
+        }
+      ],
+      "method": "large_llm",
+      "model": "deepseek-v4-pro",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "65b934c20d632fc2df0fd4723464fa78",
+      "order_id": "824d9780d0313771024a0c70fe9dd9a7",
+      "review_score": 3,
+      "raw_text": "Erraram na caixa acústica Apesar de ter sido entregue rapidamente, substituíram a caixa METEORO pela caixa BORNE. Quando tentei reclamar nas lannister o sistema estaav fora do ar. A guitarra e acessórios estavam corretos.",
+      "normalized_text_hash": "f5ab4e72e40681aafdc1d12c271ae368ffd42aa2",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "wrong_item",
+          "evidence": "substituíram a caixa METEORO pela caixa BORNE",
+          "confidence": 0.9
+        },
+        {
+          "category": "service",
+          "subcategory": "no_response",
+          "evidence": "o sistema estaav fora do ar",
+          "confidence": 0.7
+        }
+      ],
+      "method": "large_llm",
+      "model": "deepseek-v4-pro",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "968989a3b5192c9b9436fe7546acaca4",
+      "order_id": "6d7195bd775441e75af3f52c8c73031f",
+      "review_score": 3,
+      "raw_text": "Ao fazer a compra do kit entendi que receberia 2 frascos de 60 cápsulas (cada) e não 2 frascos com 60 cápsulas no total. Só não vou devolver porque estou precisando do produto.",
+      "normalized_text_hash": "64c407f960c40f40fbf820d4c5087c81f7ed3f82",
+      "issues": [
+        {
+          "category": "product",
+          "subcategory": "wrong_item",
+          "evidence": "Ao fazer a compra do kit entendi que receberia 2 frascos de 60 cápsulas (cada) e não 2 frascos com 60 cápsulas no total.",
+          "confidence": 0.95
+        }
+      ],
+      "method": "large_llm",
+      "model": "deepseek-v4-pro",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "f3f77d01a24ce4da52b6f7e83e71498d",
+      "order_id": "a5a83c95ed669b7ba0ddce1d761c191f",
+      "review_score": 1,
+      "raw_text": "Tentando cancelar o produto desde antes da emissão da nota fiscal. Não fui avisada que estava no correio, não tive nenhuma resposta do cancelamento e nao consigo devolver.",
+      "normalized_text_hash": "b89e323f35f89e6bfd44b5f93c287acd6cf660b0",
+      "issues": [
+        {
+          "category": "service",
+          "subcategory": "no_response",
+          "evidence": "não tive nenhuma resposta do cancelamento",
+          "confidence": 0.95
+        },
+        {
+          "category": "delivery",
+          "subcategory": "tracking_issue",
+          "evidence": "Não fui avisada que estava no correio",
+          "confidence": 0.95
+        },
+        {
+          "category": "service",
+          "subcategory": "refund_problem",
+          "evidence": "nao consigo devolver",
+          "confidence": 0.95
+        }
+      ],
+      "method": "large_llm",
+      "model": "deepseek-v4-pro",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "af41ee42a3e2dc767023449fda6c12fa",
+      "order_id": "762955db358210db24103ff9ce1ddda7",
+      "review_score": 1,
+      "raw_text": "Última vez que compro pois hoje vai fazer 1 mês que fiz a comprar e nada, e se demorar mas tempo de entregar estarei procurando meus direitos contra as lojas lannister e a targaryen.",
+      "normalized_text_hash": "952b99a30c00573668b7e69f9c12620e988c40dc",
+      "issues": [
+        {
+          "category": "delivery",
+          "subcategory": "delay",
+          "evidence": "hoje vai fazer 1 mês que fiz a comprar e nada",
+          "confidence": 0.95
+        }
+      ],
+      "method": "large_llm",
+      "model": "deepseek-v4-pro",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "6724babb3b9952660bc345b5f5a4db07",
+      "order_id": "c09eea5faf2f865d54fac5b97b961a75",
+      "review_score": 1,
+      "raw_text": "Nao compro mais na lannister. Se é parceiro da lannister ou não essa targaryen jamais uso novamente. Quando eu ler que é dessa empresa saio correndo. Um absurdo. Quase um mês para entregar. Extra.com ok",
+      "normalized_text_hash": "f66fbe810e016d70c2de3276d49a15e8226958b7",
+      "issues": [
+        {
+          "category": "delivery",
+          "subcategory": "delay",
+          "evidence": "Quase um mês para entregar.",
+          "confidence": 0.95
+        }
+      ],
+      "method": "large_llm",
+      "model": "deepseek-v4-pro",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "7c43af1205ff01c2b95065b2b02b3343",
+      "order_id": "bc8f3e9818eb33025b36bc379eebc6e8",
+      "review_score": 3,
+      "raw_text": "Houve alguma confusão entre vendedor e o stark, pois recebi um email do stark pedindo o cancelamento do produto por algum imprevisto na entrega; neguei e recebi o produto dias depois.",
+      "normalized_text_hash": "c293b014ca25da8e2cb69f13c6ae9d351f60dc31",
+      "issues": [
+        {
+          "category": "general",
+          "subcategory": "unclear",
+          "evidence": "Houve alguma confusão entre vendedor e o stark",
+          "confidence": 0.9
+        },
+        {
+          "category": "delivery",
+          "subcategory": "delay",
+          "evidence": "imprevisto na entrega",
+          "confidence": 0.9
+        }
+      ],
+      "method": "large_llm",
+      "model": "deepseek-v4-pro",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "5bed105c6756af72c550e78d4e9bcba7",
+      "order_id": "63c10abe3e4a1cfbeda3cdde88766893",
+      "review_score": 1,
+      "raw_text": "Estou aguardando uma resposta até hoje, sobre os meus produtos, já foram pagos e ainda NÃO os recebi, foram 03 iguais e necessito falar com pessoas e NÃO máquina ou gravações.",
+      "normalized_text_hash": "a8278469a7bfe5e34ad8ef723de40c5c749f2230",
+      "issues": [
+        {
+          "category": "delivery",
+          "subcategory": "not_received",
+          "evidence": "já foram pagos e ainda NÃO os recebi",
+          "confidence": 0.95
+        },
+        {
+          "category": "service",
+          "subcategory": "no_response",
+          "evidence": "Estou aguardando uma resposta até hoje",
+          "confidence": 0.9
+        }
+      ],
+      "method": "large_llm",
+      "model": "deepseek-v4-pro",
+      "needs_manual_review": false
+    },
+    {
+      "review_id": "8c8ec6ed4210b3d764d3dd3bbe9e87d9",
+      "order_id": "13ab379ac762d840b29042681a1a6156",
+      "review_score": 3,
+      "raw_text": "Boa noite as lojas lannister são ótimas adoro o site hoje faço pouquíssima compra pelo frete abusivo infelizmente não compensa como antes mas precisamos comprar obrigada",
+      "normalized_text_hash": "fc0bfd1be86c41648d0836d2e2bc663b4330f0f6",
+      "issues": [
+        {
+          "category": "payment",
+          "subcategory": "billing_issue",
+          "evidence": "pelo frete abusivo",
+          "confidence": 0.8
+        }
+      ],
+      "method": "large_llm",
+      "model": "deepseek-v4-pro",
+      "needs_manual_review": false
+    }
+  ]
+}

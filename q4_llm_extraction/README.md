@@ -42,11 +42,33 @@ q4_llm_extraction/
 请在仓库根目录创建 `.env` 文件（已加入 .gitignore）：
 
 ```
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
+OPENROUTER_API_KEY=sk-or-...
+DEEPSEEK_API_KEY=sk-...
 ```
 
 **绝对不要把 API Key 提交到 Git！**
+
+默认建议先用 OpenRouter + DeepSeek 模型抽样跑通：
+
+```bash
+uv run python q4_llm_extraction/extract_reviews.py \
+  --mode live \
+  --provider openrouter \
+  --live-sample-size 30 \
+  --max-cost-usd 0.50
+```
+
+如果确认要不抽样、不设本地预算上限跑完整 live pipeline：
+
+```bash
+uv run python q4_llm_extraction/extract_reviews.py \
+  --mode live \
+  --provider openrouter \
+  --live-sample-size 0 \
+  --no-cost-limit
+```
+
+这会真实调用所有进入 Small/Large LLM 路由的去重评论，可能产生明显 API 费用。
 
 ## 🎯 评分关注点
 
