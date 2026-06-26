@@ -30,12 +30,21 @@
 
 ## 💻 IDE / 开发环境
 
-### 工具 1：（例如 VS Code / PyCharm / Jupyter Notebook ...）
+### 工具 1： PyCharm 
 
 - **解决了什么问题**：
 - **使用场景**：
 - **替代方案**：
+### 工具 2： uv
 
+- **解决了什么问题**：sync 开发环境
+  - **使用场景**：uv add，uv sync等
+- **替代方案**：pip
+### 工具 3： tableplus
+
+- **解决了什么问题**：看数据库
+  - **使用场景**：uv add，uv sync等
+- **替代方案**：pip
 ---
 
 ## 🐍 Python 库

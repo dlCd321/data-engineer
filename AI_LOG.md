@@ -27,16 +27,74 @@
 
 ## 🔍 模块 1：数据质量探索
 
-### 对话 1：Q1.1 - 数据加载与初探（使用工具：____）
+### 对话 1：Q1.1 - 数据加载与初探（使用工具：codex）
 
 **Prompt**：
 ```
-（粘贴你的原始 prompt，不要删改）
+[$data-analysis] 我q1里的notebook还可以探索什么方面
 ```
 
 **AI 回复**：
 ```
-（粘贴 AI 的完整回复，不要删改）
+我看了 [q1_code.ipynb](/Users/bruce/PycharmProjects/data-engineer/q1_data_quality/q1_code.ipynb) 和 Q1 题目要求。现在 notebook 还只是基础 EDA，可以往这些方向补，优先级从高到低：
+
+1. **Invoice 前缀业务含义**
+   现在只看了首字符分布。可以继续拆 `C` 和 `A`：
+   - `C` 有 19,494 行，基本是取消/退货，金额合计约 `-1,526,667.86`
+   - `A` 只有 6 行，是 `Adjust bad debt`，`Price` 有负数
+   - 要写清楚：销售总额统计时是算 gross sales、net sales，还是排除 bad debt/退货
+
+2. **非产品 StockCode 分类**
+   不只是看 `value_counts()`，要把特殊码分组解释：
+   - `POST` / `DOT` / `C2`：邮费、dotcom postage、carriage
+   - `D`：折扣
+   - `M`：manual adjustment
+   - `BANK CHARGES` / `AMAZONFEE` / `CRUK`：费用/佣金
+   - `gift_0001_*`：礼品券
+   - 这些特殊码共 6,094 行，占约 `0.57%`，金额占比约 `-0.49%`
+
+3. **极端 Quantity 不要直接当异常删**
+   最大 `80995` 和最小 `-80995` 是同一商品、同一客户、间隔 12 分钟的销售与取消：
+   - `581483 / 23843 / 80995`
+   - `C581484 / 23843 / -80995`
+   这可以作为“看起来异常，但其实有业务解释”的强案例。
+
+4. **负数和 0 价格分开看**
+   - `Price < 0` 只有 5 行，都是 bad debt adjustment
+   - `Price = 0` 有 6,202 行，很多是 `lost`、`damaged`、`short`、`check`、缺失描述
+   - `Quantity < 0` 不全是取消单：有 3,457 行是数字 Invoice + 0 价格，多半是库存损耗/调整
+
+5. **Customer ID 缺失群体画像**
+   这个是 Q1.2 的重点。你可以补：
+   - 缺失 Customer ID：243,007 行，占 `22.77%`
+   - 但金额只占约 `13.68%`
+   - 98.77% 来自 UK
+   - 平均行金额 `10.86`，有 Customer ID 的是 `20.20`
+   - 高频商品里有 `DOTCOM POSTAGE`，可以推测偏匿名线上/系统渠道/未绑定客户订单
+
+6. **重复行是否真重复**
+   现在只算了 `duplicated()`。可以进一步说明：
+   - 精确重复行有 34,335 行
+   - 但数据没有 invoice line id，同一订单同一商品可能真实出现多行
+   - 所以不能无脑 drop duplicate，要看下游用途决定
+
+7. **Description 和 StockCode 的错配**
+   很值得写进“非显而易见问题”：
+   - 有些 `StockCode` 对应多个描述
+   - 例如 `20713` 既是 `JUMBO BAG OWLS`，也出现 `FOUND`、`MISSING`、`WRONGLY CODED`
+   - 说明 Description 混入了库存/人工备注，不总是商品名
+
+8. **缺失 Description 的业务含义**
+   缺失 Description 有 4,382 行，而且：
+   - `Price` 全部是 0
+   - `Customer ID` 全部缺失
+   - 约 61% 是负 Quantity
+   这比单纯说“Description 有缺失”强很多。
+
+9. **时间范围和月度可比性**
+   数据到 `2011-12-09`，所以 2011 年 12 月不是完整月份。后续如果做月度趋势，不能直接把 2011-12 和其他完整月份比较。
+
+建议 notebook 最后加一个“小结 cell”，把这些探索收敛成 Q1.1 的 5 个以上数据质量问题，并明确哪些应该删除、哪些应该保留、哪些要按下游用途分开处理。当前最缺的是“业务解读”和“清洗策略口径”，不是更多 `describe()`。
 ```
 
 **你的评估**：
