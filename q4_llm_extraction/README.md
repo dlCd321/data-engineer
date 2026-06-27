@@ -21,6 +21,18 @@ q4_llm_extraction/
 - **时长**：40 分钟
 - **不允许全部用 GPT-4 处理所有评论**（成本会爆，且没必要）
 
+## ✅ 本次实现摘要
+
+- 默认可复现路径：`offline`，不依赖 API key，不产生模型费用。
+- 真实模型验证路径：`live` + `provider=deepseek`。
+- 使用模型：Small LLM 为 `deepseek-v4-flash`，Large LLM 为 `deepseek-v4-pro`。
+- full live 实际耗时：47 分钟。
+- full live 实际账单成本：14 RMB。
+- 处理规模：22,754 条低分评论，去重后 13,592 条文本。
+- 分流结果：Rule Engine 7,554 条，Small LLM 4,836 条，Large LLM 1,202 条。
+
+本次 full live 为了验证完整链路关闭了本地成本上限，因此耗时超过 40 分钟约束 7 分钟。正式生产运行时建议保留 `--max-cost-usd 3.0`，并把低价值失败样本直接进入人工复核队列，避免为了追求全自动覆盖而拖慢整体 SLA。
+
 ## 💡 关键决策点
 
 1. **分流策略**：哪些评论值得用大模型处理？哪些用规则/小模型？
@@ -48,12 +60,12 @@ DEEPSEEK_API_KEY=sk-...
 
 **绝对不要把 API Key 提交到 Git！**
 
-默认建议先用 OpenRouter + DeepSeek 模型抽样跑通：
+本次提交的真实运行使用 DeepSeek direct provider。建议先抽样跑通：
 
 ```bash
 uv run python q4_llm_extraction/extract_reviews.py \
   --mode live \
-  --provider openrouter \
+  --provider deepseek \
   --live-sample-size 30 \
   --max-cost-usd 0.50
 ```
@@ -63,7 +75,7 @@ uv run python q4_llm_extraction/extract_reviews.py \
 ```bash
 uv run python q4_llm_extraction/extract_reviews.py \
   --mode live \
-  --provider openrouter \
+  --provider deepseek \
   --live-sample-size 0 \
   --no-cost-limit
 ```

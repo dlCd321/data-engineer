@@ -8,6 +8,7 @@ import os
 import re
 import unicodedata
 from collections import Counter, OrderedDict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Literal
@@ -30,6 +31,7 @@ LOW_SCORE_THRESHOLD = 3
 SMALL_MAX_CHARS = 120
 LARGE_MIN_CHARS = 160
 LARGE_COMPLEX_MARKER_MIN = 2
+SMALL_RETRY_MIN_CHARS = 100
 MIN_CONFIDENCE = 0.70
 DEFAULT_PROVIDER: Literal["openrouter", "deepseek"] = "openrouter"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -466,6 +468,31 @@ def route_group(group: DedupGroup) -> RoutedGroup:
     return RoutedGroup(group=group, route="small_llm", reason="短文本且规则未稳定覆盖")
 
 
+def count_complex_markers(normalized_text: str) -> int:
+    return len(
+        re.findall(
+            r"\b(mas|por[eé]m|tamb[eé]m|al[eé]m|reembolso|troca|resposta|prazo|quebrad[oa]|faltou)\b",
+            normalized_text,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def should_retry_small_failure_as_large(group: DedupGroup) -> bool:
+    normalized = group.representative_normalized_text
+    if len(normalized) >= SMALL_RETRY_MIN_CHARS:
+        return True
+    if count_complex_markers(normalized) >= LARGE_COMPLEX_MARKER_MIN:
+        return True
+    return bool(
+        re.search(
+            r"\b(reembolso|estorno|devolu[cç][aã]o|troca|sem resposta|atendimento|sac|suporte|cobran[cç]a|pagamento|produto errado|veio errado|diferente do anuncio|diferente do anúncio|defeito|quebrad[oa]|faltou|faltando)\b",
+            normalized,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
 def fallback_unclear_result(route: Literal["small_llm", "large_llm"], raw_text: str) -> ExtractionResult:
     return ExtractionResult(
         issues=[issue("general", "unclear", raw_excerpt(raw_text), 0.50)],
@@ -629,6 +656,7 @@ def process_routed_groups(
     batch_token_budget: int,
     max_cost_usd: float | None,
     live_sample_size: int | None,
+    llm_concurrency: int = 8,
 ) -> tuple[dict[str, ExtractionResult], CostTracker, ProcessingStats, list[RoutedGroup]]:
     results: dict[str, ExtractionResult] = {}
     cost = CostTracker(max_cost_usd=max_cost_usd)
@@ -659,86 +687,169 @@ def process_routed_groups(
             results[group.dedup_key] = fallback_unclear_result("large_llm", group.representative_raw_text)
         return results, cost, stats, active_routed_groups
 
-    extractor = CompatibleLLMExtractor(provider=provider, small_model=small_model, large_model=large_model)
     batches = build_small_batches(small_groups, token_budget=batch_token_budget)
     failed_small_groups: list[DedupGroup] = []
 
-    for batch in batches:
-        if stats.budget_exhausted:
-            for group in batch:
-                results[group.dedup_key] = fallback_unclear_result("small_llm", group.representative_raw_text)
-            continue
+    def build_extractor() -> CompatibleLLMExtractor:
+        return CompatibleLLMExtractor(provider=provider, small_model=small_model, large_model=large_model)
+
+    def call_small_batch(batch: list[DedupGroup]) -> tuple[dict[str, ExtractionResult], ProviderUsage]:
+        return build_extractor().call_small_batch(batch)
+
+    def call_large_single(group: DedupGroup) -> tuple[ExtractionResult, ProviderUsage]:
+        return build_extractor().call_large_single(group)
+
+    def mark_small_fallback(batch: list[DedupGroup]) -> None:
+        for group in batch:
+            results[group.dedup_key] = fallback_unclear_result("small_llm", group.representative_raw_text)
+
+    def mark_large_fallback(group: DedupGroup) -> None:
+        results[group.dedup_key] = fallback_unclear_result("large_llm", group.representative_raw_text)
+
+    def reserve_small_call(batch: list[DedupGroup]) -> bool:
         input_tokens = sum(estimate_tokens(group.representative_raw_text) + 80 for group in batch)
         output_tokens = max(200, len(batch) * 120)
+        nonlocal cost, stats
         try:
             cost = cost.add_call("small", input_tokens=input_tokens, output_tokens=output_tokens)
         except RuntimeError:
             stats = stats.with_budget_exhausted()
-            for group in batch:
-                results[group.dedup_key] = fallback_unclear_result("small_llm", group.representative_raw_text)
-            continue
-        try:
-            stats = stats.with_call()
-            batch_results, usage = extractor.call_small_batch(batch)
-            cost = cost.add_usage(usage)
-        except (ValidationError, KeyError, TypeError, json.JSONDecodeError):
-            stats = stats.with_failure(schema_error=True)
-            failed_small_groups.extend(batch)
-            continue
-        except Exception:
-            stats = stats.with_failure()
-            failed_small_groups.extend(batch)
-            continue
+            mark_small_fallback(batch)
+            return False
+        stats = stats.with_call()
+        return True
 
-        for group in batch:
-            result = batch_results.get(group.dedup_key)
-            if result is None or result.min_confidence < MIN_CONFIDENCE:
-                failed_small_groups.append(group)
-                continue
-            try:
-                results[group.dedup_key] = validate_result_for_text(
-                    result,
-                    group.representative_raw_text,
-                )
-            except ValidationError:
-                stats = stats.with_failure(schema_error=True)
-                failed_small_groups.append(group)
-            except ValueError:
-                stats = stats.with_failure(evidence_error=True)
-                failed_small_groups.append(group)
-
-    for group in large_groups + failed_small_groups:
-        if stats.budget_exhausted:
-            results[group.dedup_key] = fallback_unclear_result("large_llm", group.representative_raw_text)
-            continue
+    def reserve_large_call(group: DedupGroup) -> bool:
         input_tokens = estimate_tokens(group.representative_raw_text) + 180
         output_tokens = 450
+        nonlocal cost, stats
         try:
             cost = cost.add_call("large", input_tokens=input_tokens, output_tokens=output_tokens)
         except RuntimeError:
             stats = stats.with_budget_exhausted()
-            results[group.dedup_key] = fallback_unclear_result("large_llm", group.representative_raw_text)
+            mark_large_fallback(group)
+            return False
+        stats = stats.with_call()
+        return True
+
+    concurrency = max(1, llm_concurrency)
+    with ThreadPoolExecutor(max_workers=concurrency) as executor:
+        small_futures = {}
+        large_futures = {}
+
+        for batch in batches:
+            if stats.budget_exhausted:
+                mark_small_fallback(batch)
+                continue
+            if reserve_small_call(batch):
+                future = executor.submit(call_small_batch, batch)
+                small_futures[future] = batch
+
+        for group in large_groups:
+            if stats.budget_exhausted:
+                mark_large_fallback(group)
+                continue
+            if reserve_large_call(group):
+                future = executor.submit(call_large_single, group)
+                large_futures[future] = group
+
+        for future in as_completed([*small_futures.keys(), *large_futures.keys()]):
+            if future in small_futures:
+                batch = small_futures[future]
+                try:
+                    batch_results, usage = future.result()
+                    cost = cost.add_usage(usage)
+                except (ValidationError, KeyError, TypeError, json.JSONDecodeError):
+                    stats = stats.with_failure(schema_error=True)
+                    failed_small_groups.extend(batch)
+                    continue
+                except Exception:
+                    stats = stats.with_failure()
+                    failed_small_groups.extend(batch)
+                    continue
+
+                for group in batch:
+                    result = batch_results.get(group.dedup_key)
+                    if result is None or result.min_confidence < MIN_CONFIDENCE:
+                        failed_small_groups.append(group)
+                        continue
+                    try:
+                        results[group.dedup_key] = validate_result_for_text(
+                            result,
+                            group.representative_raw_text,
+                        )
+                    except ValidationError:
+                        stats = stats.with_failure(schema_error=True)
+                        failed_small_groups.append(group)
+                    except ValueError:
+                        stats = stats.with_failure(evidence_error=True)
+                        failed_small_groups.append(group)
+                continue
+
+            group = large_futures[future]
+            try:
+                result, usage = future.result()
+                cost = cost.add_usage(usage)
+                validated = validate_result_for_text(result, group.representative_raw_text)
+                if validated.min_confidence < MIN_CONFIDENCE:
+                    validated = validated.model_copy(update={"needs_manual_review": True})
+                results[group.dedup_key] = validated
+            except ValidationError:
+                stats = stats.with_failure(schema_error=True)
+                mark_large_fallback(group)
+            except (KeyError, TypeError, json.JSONDecodeError):
+                stats = stats.with_failure(schema_error=True)
+                mark_large_fallback(group)
+            except ValueError:
+                stats = stats.with_failure(evidence_error=True)
+                mark_large_fallback(group)
+            except Exception:
+                stats = stats.with_failure()
+                mark_large_fallback(group)
+
+        retry_small_groups: list[DedupGroup] = []
+        for group in failed_small_groups:
+            if should_retry_small_failure_as_large(group):
+                retry_small_groups.append(group)
+            else:
+                mark_small_fallback([group])
+
+        retry_futures = {}
+        for group in retry_small_groups:
+            if stats.budget_exhausted:
+                mark_large_fallback(group)
+                continue
+            if reserve_large_call(group):
+                future = executor.submit(call_large_single, group)
+                retry_futures[future] = group
+
+        for future in as_completed(retry_futures):
+            group = retry_futures[future]
+            try:
+                result, usage = future.result()
+                cost = cost.add_usage(usage)
+                validated = validate_result_for_text(result, group.representative_raw_text)
+                if validated.min_confidence < MIN_CONFIDENCE:
+                    validated = validated.model_copy(update={"needs_manual_review": True})
+                results[group.dedup_key] = validated
+            except ValidationError:
+                stats = stats.with_failure(schema_error=True)
+                mark_large_fallback(group)
+            except (KeyError, TypeError, json.JSONDecodeError):
+                stats = stats.with_failure(schema_error=True)
+                mark_large_fallback(group)
+            except ValueError:
+                stats = stats.with_failure(evidence_error=True)
+                mark_large_fallback(group)
+            except Exception:
+                stats = stats.with_failure()
+                mark_large_fallback(group)
+
+    for group in large_groups + retry_small_groups:
+        if group.dedup_key in results:
             continue
-        try:
-            stats = stats.with_call()
-            result, usage = extractor.call_large_single(group)
-            cost = cost.add_usage(usage)
-            validated = validate_result_for_text(result, group.representative_raw_text)
-            if validated.min_confidence < MIN_CONFIDENCE:
-                validated = validated.model_copy(update={"needs_manual_review": True})
-            results[group.dedup_key] = validated
-        except ValidationError:
-            stats = stats.with_failure(schema_error=True)
-            results[group.dedup_key] = fallback_unclear_result("large_llm", group.representative_raw_text)
-        except (KeyError, TypeError, json.JSONDecodeError):
-            stats = stats.with_failure(schema_error=True)
-            results[group.dedup_key] = fallback_unclear_result("large_llm", group.representative_raw_text)
-        except ValueError:
-            stats = stats.with_failure(evidence_error=True)
-            results[group.dedup_key] = fallback_unclear_result("large_llm", group.representative_raw_text)
-        except Exception:
-            stats = stats.with_failure()
-            results[group.dedup_key] = fallback_unclear_result("large_llm", group.representative_raw_text)
+        if stats.budget_exhausted:
+            mark_large_fallback(group)
 
     return results, cost, stats, active_routed_groups
 
@@ -902,6 +1013,7 @@ def run_pipeline(
     batch_token_budget: int = 6000,
     max_cost_usd: float | None = 3.0,
     live_sample_size: int | None = None,
+    llm_concurrency: int = 8,
     write_docs: bool = True,
 ) -> dict[str, Any]:
     load_dotenv_if_available()
@@ -921,6 +1033,7 @@ def run_pipeline(
         batch_token_budget=batch_token_budget,
         max_cost_usd=max_cost_usd,
         live_sample_size=live_sample_size,
+        llm_concurrency=llm_concurrency,
     )
 
     active_groups = [routed.group for routed in active_routed_groups]
@@ -979,6 +1092,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--small-model", default=os.getenv("Q4_SMALL_MODEL"))
     parser.add_argument("--large-model", default=os.getenv("Q4_LARGE_MODEL"))
     parser.add_argument("--batch-token-budget", type=int, default=int(os.getenv("Q4_BATCH_TOKEN_BUDGET", "6000")))
+    parser.add_argument("--llm-concurrency", type=int, default=int(os.getenv("Q4_LLM_CONCURRENCY", "8")))
     parser.add_argument("--max-cost-usd", type=float, default=float(os.getenv("Q4_MAX_COST_USD", "3.0")))
     parser.add_argument(
         "--no-cost-limit",
@@ -1009,6 +1123,7 @@ def main() -> int:
         batch_token_budget=args.batch_token_budget,
         max_cost_usd=None if args.no_cost_limit else args.max_cost_usd,
         live_sample_size=args.live_sample_size if args.mode == "live" else None,
+        llm_concurrency=args.llm_concurrency,
     )
     metadata = payload["metadata"]
     print(

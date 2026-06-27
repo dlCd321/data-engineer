@@ -1,4 +1,5 @@
 import json
+import threading
 
 import pytest
 
@@ -183,6 +184,106 @@ def test_schema_failure_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
     assert results["s1"].method == "offline_large_llm_fallback"
     assert stats.failed_llm_count == 2
     assert stats.schema_error_count == 2
+
+
+def test_ordinary_small_failure_does_not_upgrade_to_large(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeExtractor:
+        def __init__(self, **_: object) -> None:
+            pass
+
+        def call_small_batch(self, batch: list[q4.DedupGroup]) -> tuple[dict[str, q4.ExtractionResult], q4.ProviderUsage]:
+            raise json.JSONDecodeError("bad", "", 0)
+
+        def call_large_single(self, group: q4.DedupGroup) -> tuple[q4.ExtractionResult, q4.ProviderUsage]:
+            raise AssertionError("ordinary small failure should not be upgraded")
+
+    monkeypatch.setattr(q4, "CompatibleLLMExtractor", FakeExtractor)
+    groups = [routed("gostaria de saber o que houve", "small_llm", "s1")]
+
+    results, _cost, stats, _active = q4.process_routed_groups(
+        routed_groups=groups,
+        mode="live",
+        provider="openrouter",
+        small_model="deepseek/deepseek-v3.1",
+        large_model="deepseek/deepseek-r1",
+        batch_token_budget=6000,
+        max_cost_usd=1.0,
+        live_sample_size=None,
+    )
+
+    assert results["s1"].method == "offline_small_llm_fallback"
+    assert results["s1"].needs_manual_review is True
+    assert stats.llm_call_count == 1
+    assert stats.failed_llm_count == 1
+    assert stats.schema_error_count == 1
+
+
+def test_live_small_and_large_routes_are_submitted_concurrently(monkeypatch: pytest.MonkeyPatch) -> None:
+    large_started = threading.Event()
+
+    class FakeExtractor:
+        def __init__(self, **_: object) -> None:
+            pass
+
+        def call_small_batch(self, batch: list[q4.DedupGroup]) -> tuple[dict[str, q4.ExtractionResult], q4.ProviderUsage]:
+            assert large_started.wait(timeout=1.0)
+            return (
+                {
+                    batch[0].dedup_key: q4.ExtractionResult(
+                        issues=[
+                            q4.Issue(
+                                category="product",
+                                subcategory="defective",
+                                evidence=batch[0].representative_raw_text,
+                                confidence=0.9,
+                            )
+                        ],
+                        method="small_llm",
+                        model="small",
+                    )
+                },
+                q4.ProviderUsage(input_tokens=1, output_tokens=1),
+            )
+
+        def call_large_single(self, group: q4.DedupGroup) -> tuple[q4.ExtractionResult, q4.ProviderUsage]:
+            large_started.set()
+            return (
+                q4.ExtractionResult(
+                    issues=[
+                        q4.Issue(
+                            category="delivery",
+                            subcategory="delay",
+                            evidence=group.representative_raw_text,
+                            confidence=0.9,
+                        )
+                    ],
+                    method="large_llm",
+                    model="large",
+                ),
+                q4.ProviderUsage(input_tokens=1, output_tokens=1),
+            )
+
+    monkeypatch.setattr(q4, "CompatibleLLMExtractor", FakeExtractor)
+    groups = [
+        routed("produto chegou quebrado", "small_llm", "s1"),
+        routed("entrega atrasou muito e causou transtorno para minha familia inteira", "large_llm", "l1"),
+    ]
+
+    results, _cost, stats, _active = q4.process_routed_groups(
+        routed_groups=groups,
+        mode="live",
+        provider="openrouter",
+        small_model="deepseek/deepseek-v3.1",
+        large_model="deepseek/deepseek-r1",
+        batch_token_budget=6000,
+        max_cost_usd=1.0,
+        live_sample_size=None,
+        llm_concurrency=2,
+    )
+
+    assert results["s1"].method == "small_llm"
+    assert results["l1"].method == "large_llm"
+    assert stats.llm_call_count == 2
 
 
 def test_cost_gate_stops_live_calls(monkeypatch: pytest.MonkeyPatch) -> None:
