@@ -114,6 +114,28 @@ GitHub：`https://github.com/Jay-gekko/data-engineer`（请 Fork 到自己的 Gi
   - 确保 `python run_all.py` 能从 0 到 1 跑通整个 pipeline（含数据下载）
   - 每个模块也可独立运行（不要因为模块 1 报错导致后面全跑不了）
 
+#### 本地复现说明
+
+默认情况下可直接运行完整 pipeline：
+
+```bash
+.venv/bin/python run_all.py
+```
+
+Q2 使用 MySQL 8.0+ 完成 SQL 分析。MySQL 属于外部服务，因此 `run_all.py` 默认不会强制装载数据库；如果本地已经启动 MySQL，并希望复现 Olist 9 张 CSV 的装载步骤，可以显式开启：
+
+```bash
+MYSQL_USER=olist_user \
+MYSQL_PASSWORD=olist_pass \
+MYSQL_HOST=localhost \
+MYSQL_PORT=3306 \
+MYSQL_DATABASE=olist \
+RUN_Q2_MYSQL_LOAD=1 \
+.venv/bin/python run_all.py
+```
+
+其中 `MYSQL_*` 可替换为 reviewer 本机的 MySQL 连接信息；`RUN_Q2_MYSQL_LOAD=1` 只负责开启 Q2 的外部数据库装载步骤。未设置该 flag 时，runner 会跳过 MySQL 装载，避免因为本机没有数据库服务而阻断其他模块复现。
+
 #### 2. 文档提交（三份必填）
 
 **📝 `REFLECTION.md`** - 反思文档，每道题需补充：
@@ -620,4 +642,3 @@ Olist 当前的数据是离线 CSV 导出。现在业务需求是——卖家希
 祝好运 ✨
 
 ---
-

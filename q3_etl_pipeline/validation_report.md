@@ -11,8 +11,8 @@
 | eligible_return_rows | 17,933.00 |
 | matched_eligible_returns | 6,509.00 |
 | eligible_return_match_rate_pct | 36.30 |
-| runtime_seconds | 2.20 |
-| peak_memory_mb | 876.66 |
+| runtime_seconds | 4.17 |
+| peak_memory_mb | 1,067.86 |
 
 ## 2. Sales Facts
 

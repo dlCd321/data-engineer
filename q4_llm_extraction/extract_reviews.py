@@ -1122,6 +1122,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="允许重新生成并覆盖 cost_report.md 和 accuracy_evaluation.md；默认保留已有手工报告。",
     )
+    parser.add_argument(
+        "--no-write-docs",
+        action="store_true",
+        help="只生成 JSON 输出，不写入 cost_report.md 或 accuracy_evaluation.md。",
+    )
     return parser.parse_args()
 
 
@@ -1141,6 +1146,7 @@ def main() -> int:
         max_cost_usd=None if args.no_cost_limit else args.max_cost_usd,
         live_sample_size=args.live_sample_size if args.mode == "live" else None,
         llm_concurrency=args.llm_concurrency,
+        write_docs=not args.no_write_docs,
         overwrite_docs=args.overwrite_docs,
     )
     metadata = payload["metadata"]
