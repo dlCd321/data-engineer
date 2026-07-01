@@ -139,19 +139,70 @@ CREATE INDEX idx_order_reviews_order_id
 
 ### 优化前 vs 优化后实测对比
 
-| 指标 | 优化前 | 优化后 |
-|------|--------|--------|
-| 执行时间 | 本机 MySQL 服务未启动，未实测 | 本机 MySQL 服务未启动，未实测 |
-| 扫描行数 | 建议用 `EXPLAIN ANALYZE` 记录 | 建议用 `EXPLAIN ANALYZE` 记录 |
+本地 MySQL 8.0 使用 `EXPLAIN ANALYZE` 实测如下：
 
-本题当前先给出逻辑优化方案。实际提交前如果能启动 MySQL 8.0，可分别执行：
+| 指标 | 原 SQL | 当前优化 SQL |
+|------|--------|--------------|
+| 总耗时 | `435 ms` | `1294 ms` |
+| 最终输出行数 | 22 | 22 |
+| `orders` 扫描 | 全表扫描 `99,441` 行，过滤后 `96,211` 行 | `orders` 被重复扫描多次，每次约 `99,441` 行 |
+| 城市过滤 | 对 `96,211` 个订单逐次按 `customer_id` 查客户，再执行 `LOWER(customer_city) LIKE '%sao%'`，得到约 `20,367` 个订单 | 同样的客户城市过滤在多个 CTE 分支中重复执行 |
+| 明细连接 | `order_items` 命中 `23,418` 行，`order_reviews` 命中 `23,568` 行 | `item_revenue_by_order` 物化约 `20,367` 行，`review_by_order` 物化约 `20,236` 行 |
+| 聚合方式 | 在 join 后的 `23,568` 行上 `GROUP BY customer_state`，并做 `COUNT(DISTINCT)` | 先聚合订单收入和订单评价，再 hash join 回过滤订单 |
+| 统计正确性 | `SUM(oi.price)` 可能被 review 行数放大 | revenue 和 avg_score 先回到订单粒度，避免一对多 join 乘法 |
 
-```sql
-EXPLAIN ANALYZE
-SELECT ...
+原 SQL 的关键执行片段：
+
+```text
+-> Sort: revenue DESC (actual time=435..435 rows=22 loops=1)
+    -> Group aggregate: count(distinct orders.order_id), sum(order_items.price), avg(order_reviews.review_score)
+        -> Sort: c.customer_state (actual time=427..429 rows=23568 loops=1)
+            -> Nested loop left join (actual time=0.0587..419 rows=23568 loops=1)
+                -> Filter: order_status='delivered' and purchase >= '2017-01-01'
+                    -> Table scan on orders (actual time=0.0136..19.1 rows=99441 loops=1)
+                -> Index lookup on customers by customer_id, then LOWER(customer_city) LIKE '%sao%'
+                -> Index lookup on order_items by order_id
+                -> Index lookup on order_reviews by order_id
 ```
 
-对比重点不是只看总耗时，还要看 `orders`、`customers`、`order_items`、`order_reviews` 的实际扫描行数，以及是否出现大规模临时表/filesort。
+当前优化 SQL 的关键执行片段：
+
+```text
+-> Sort: revenue DESC (actual time=1294..1294 rows=22 loops=1)
+    -> Aggregate using temporary table (actual time=1294..1294 rows=22 loops=1)
+        -> Left hash join review_by_order (actual time=921..1288 rows=20367 loops=1)
+            -> Left hash join item_revenue_by_order (actual time=373..678 rows=20367 loops=1)
+                -> filtered orders + customers (actual time=0.0622..260 rows=20367 loops=1)
+                -> Materialize CTE item_revenue_by_order (actual time=370..370 rows=20367 loops=1)
+                -> Materialize CTE review_by_order (actual time=546..546 rows=20236 loops=1)
+```
+
+这次实测的结论是：**当前优化 SQL 修正了统计口径，但没有在本机数据量上变快**。主要原因是 MySQL 对 CTE/派生表的执行计划不理想，`filtered_orders` 相关逻辑被展开到 `item_revenue_by_order` 和 `review_by_order` 分支里重复计算，导致 `orders` 扫描、`customers` 城市过滤和临时表物化都重复发生。
+
+如果目标是同时保证正确性和性能，我会继续做两点改进：
+
+1. 把过滤后的订单先落到临时表，并给 `order_id` 加主键，避免多个 CTE 分支重复扫描 `orders/customers`：
+
+```sql
+CREATE TEMPORARY TABLE tmp_filtered_orders AS
+SELECT
+    o.order_id,
+    c.customer_state
+FROM orders AS o
+INNER JOIN customers AS c
+    ON o.customer_id = c.customer_id
+WHERE o.order_status = 'delivered'
+  AND o.order_purchase_timestamp >= '2017-01-01'
+  AND LOWER(c.customer_city) LIKE '%sao%';
+
+ALTER TABLE tmp_filtered_orders
+    ADD PRIMARY KEY (order_id),
+    ADD INDEX idx_tmp_customer_state (customer_state);
+```
+
+然后 `order_items` 和 `order_reviews` 都只 join `tmp_filtered_orders`。这样保留订单粒度预聚合，同时避免重复执行最贵的过滤逻辑。
+
+2. 长期优化城市搜索字段。`LOWER(customer_city) LIKE '%sao%'` 是这条查询里最难通过普通索引优化的部分。如果业务经常做城市搜索，应新增标准化城市列，例如 `customer_city_norm`，并尽量把查询改为可索引的前缀匹配；如果必须任意位置匹配，则普通 BTree 不是合适方案，应考虑 FULLTEXT、倒排索引或离线城市维表。
 
 ---
 

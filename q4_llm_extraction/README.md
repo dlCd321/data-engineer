@@ -82,6 +82,8 @@ uv run python q4_llm_extraction/extract_reviews.py \
 
 这会真实调用所有进入 Small/Large LLM 路由的去重评论，可能产生明显 API 费用。
 
+默认情况下，脚本会保留已有的 `cost_report.md` 和 `accuracy_evaluation.md`，避免覆盖手工整理后的提交版报告。如果确实需要重新生成这两个报告，请显式加 `--overwrite-docs`。
+
 ## 🎯 评分关注点
 
 | 项目 | 分值 |

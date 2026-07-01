@@ -16,7 +16,7 @@
 - **姓名**: 戴健恒
 - **邮箱**：2822724509djh@gmail.com
 - **完成日期**：
-- **实际投入时间**：__ 小时（请如实填写）
+- **实际投入时间**：10 小时（请如实填写）
 - **最终 commit hash**：
 
 ---
@@ -32,7 +32,7 @@
 | | Q2.2 | __% | __ / 8 | |
 | | Q2.3 | __% | __ / 8 | |
 | | Q2.4 | __% | __ / 4 | |
-| 模块 3：ETL Pipeline | Q3.1 | __% | __ / 20 | |
+| 模块 3：ETL Pipeline | Q3.1 | 90% | 18 / 20 | 已完成 3 个 parquet、日志、校验报告和单元测试；退货匹配采用保守 exact rule |
 | 模块 4：LLM 抽取 | Q4.1 | __% | __ / 15 | |
 | 模块 5：系统设计 | Q5.1 | __% | __ / 15 | |
 | 加分题 | Q6.1 | __% | __ / 10 | |
@@ -47,7 +47,7 @@
 ### 实现思路
 > 不只是说代码做了什么，重点解释**为什么这么做**
 
-（请填写）
+首先用.describe() 探索这个数据集长什么样子，然后找出异常值
 
 ### 关键发现
 > 你在数据中发现了哪些"反直觉"的事实？
@@ -70,23 +70,23 @@
 
 ### 实现思路
 
-（请填写）
+Q2 用 MySQL 8.0 方言完成，重点不是把 CSV 查出结果，而是保证指标粒度正确。Q2.2 先把 `order_items` 聚合到订单粒度再和 `orders` 连接，GMV 使用 `price + freight_value`；Q2.3 先把 `order_reviews` 按 `order_id` 去重/聚合，再计算卖家指标和州内排名；Q2.4 重点分析一对多 JOIN 后的统计膨胀和索引失效问题。
 
 ### Q2.4 第 3 问的思考
 > 这道题考的是 JOIN 后行数膨胀，你想清楚了吗？
 
-（请填写）
+原 SQL 同时把 `order_items` 和 `order_reviews` 按 `order_id` 连接到 `orders`。这两张表对订单都可能是一对多，所以一个订单如果有 2 行商品、2 条评价，JOIN 后会变成 4 行。`COUNT(DISTINCT o.order_id)` 只能修正订单数，但 `SUM(oi.price)` 会被评价行数重复放大，`AVG(r.review_score)` 也会被商品行数影响。我的修正思路是先把商品金额和评价分数都预聚合到订单粒度，再回到州维度聚合。
 
 ### SQL 优化前后对比
 > 如果你做了性能优化，请列出优化前 vs 优化后的具体数据
 
 | 查询 | 优化前耗时 | 优化后耗时 | 优化手段 |
 |------|------------|------------|----------|
-| Q2.4 原 SQL | | | |
+| Q2.4 原 SQL vs 当前修正版 | 435 ms | 1294 ms | 先按订单粒度聚合 `order_items` 和 `order_reviews`，修正 revenue 膨胀；但当前 CTE 写法在 MySQL 中重复扫描 `orders/customers`，所以实测更慢 |
 
 ### 遇到的坑
 
-（请填写）
+这次最大的坑是“逻辑优化”和“执行更快”不是一回事。当前修正版 SQL 口径更正确，但 `EXPLAIN ANALYZE` 显示 MySQL 把过滤订单、客户城市匹配、临时表物化在多个 CTE 分支里重复执行，导致从 435 ms 变成 1294 ms。后续如果要真正加速，我会把过滤后的订单先落到临时表并给 `order_id` 建主键，或者重写 CTE 让 `filtered_orders` 只计算一次；另外 `LOWER(customer_city) LIKE '%sao%'` 本身也很难走普通 BTree 索引，需要标准化城市列或专门的搜索结构。
 
 ---
 
@@ -94,28 +94,66 @@
 
 ### 实现思路
 
-（请填写）
+Q3 直接复用 Q1 已经验证过的数据语义，而不是重新写一套清洗规则。具体做法是从 `q1_data_quality/q1_code.py` 引入 `load_retail_data`、`build_work_table` 和 `classify_stock_code`，沿用 Q1 里的 `C` 取消/退货、`A` bad debt、非产品 StockCode、`Price=0 & Quantity<0` 商品损坏/库存损耗，以及 gross/net/financial 三种销售口径。
+
+三个输出对应三个下游用途：
+
+- `sales_facts.parquet`：只保留 gross product sales，即数字 Invoice、产品型 StockCode、`Quantity > 0`、`Price > 0`，用于 BI 报表。
+- `customer_features.parquet`：只基于有 `Customer ID` 的真实销售计算 RFM，因为 Q1 已经证明缺失客户 ID 是结构性渠道问题，不能混入客户生命周期指标。
+- `returns_log.parquet`：保留所有 `C` 开头 invoice 行，用于退货/取消审计，并额外输出 `matched_original_invoice`。
 
 ### 退货匹配的规则设计
 > 这是 Q3.1 最难的部分，详细说明你是怎么思考的
 
 **你的匹配规则**：
 
+- 同一个 `customer_id`
+- 同一个 `stock_code`
+- 退货数量的绝对值等于原销售数量
+- 原销售时间早于退货时间
+- 多笔候选销售都符合时，选择离退货时间最近的一笔
+- 只有负数量、产品型 StockCode、有客户 ID、正价格的 `C` 行参与匹配；其它 `C` 行保留在日志中，但不强行匹配
+
 **为什么这么设计**：
 
+这个规则是保守规则。它优先保证匹配出来的结果能解释，而不是追求把所有退货都“猜”出一个原单。题目特别强调 `CustomerID + StockCode + |Quantity| + 最近早于退货日期`，所以我用 `pandas.merge_asof` 在排序后的候选集上做最近前序匹配，避免 `iterrows()` 逐行查找。
+
+我没有把 `C` 单直接从销售里删除后丢弃，而是单独做成 `returns_log`，因为 Q1 里已经看到极端值 `581483 / C581484` 这种一正一负记录很有审计价值。销售报表看 gross sales，退货分析看 returns log，两边口径分开。
+
 **未覆盖的边界情况**：
+
+- 如果客户买了 10 个，之后分两次退 5 个和 5 个，因为数量不完全相等，目前不会匹配。
+- 如果一笔原销售数量小于退货数量，也不会匹配。
+- 如果同一客户、同一商品、同一数量存在多次完全相同的退货，当前规则不会消耗原销售数量，可能多条退货指向同一个最近销售 invoice。
+- 如果缺失 `Customer ID`，即使商品和数量看起来能对上，也不会匹配，因为这会引入过强猜测。
 
 ### 性能数据
 > 你的 pipeline 在 100 万行数据上跑了多久？做了哪些性能优化？
 
-- 总耗时：__ 秒
-- 内存峰值：__ MB
+- 总耗时：2.20 秒
+- 内存峰值：876.66 MB
 - 主要优化点：
+  - 使用 pandas 布尔筛选和 groupby 生成 sales facts / RFM，不用全表 `iterrows()`。
+  - 退货匹配用排序后的 `merge_asof`，按 customer、stock、quantity_abs 分组键找最近历史销售。
+  - 输出前固定排序，保证相同输入每次产物顺序一致。
+  - 只把必要字段写入 parquet，避免把 Q1 的中间派生字段全部带入下游。
 
 ### 数据校验
 > 你的 assertion 在跑通过程中有没有触发过？发现了什么问题？
 
-（请填写）
+最终运行时 assertion 没有失败。校验内容包括：
+
+- `sales_facts` 的 `quantity > 0`、`unit_price > 0`、`total_amount > 0`
+- `customer_features` 的 `customer_id` 非空、`frequency >= 1`、`recency_days >= 0`、`monetary >= 0`
+- `returns_log` 只包含 `C` 开头 invoice，且 `matched_original_invoice` 不指向 `C` 单
+
+真实数据输出结果：
+
+- `sales_facts`：1,036,877 行，金额合计 20,108,995.40，和 Q1 的 gross product sales 对齐
+- `customer_features`：5,852 个可识别客户
+- `returns_log`：19,494 行 `C` invoice，其中 17,933 行符合退货匹配候选条件，6,509 行找到 exact prior sale，候选退货匹配率 36.30%
+
+过程中发现一个实现 bug：第一次运行时 parquet 已写出，但 `validation_report.md` 生成失败，原因是 f-string 中 `rename(columns={"index": "metric"})` 误写成双花括号。修复后补了一个 report smoke test，防止同类问题再次出现。
 
 ---
 
@@ -123,28 +161,34 @@
 
 ### 分流策略
 
-**用规则处理的评论占比**：__%
-**用 LLM 处理的评论占比**：__%
+**用规则处理的评论占比**：55.6%（7,554 / 13,592 条去重文本）
+**用 LLM 处理的评论占比**：44.4%（Small LLM 4,836 条，Large LLM 1,202 条）
 **分流依据**：
+
+Q4 只处理 `review_score <= 3` 的低分评论，共 22,754 条，其中空文本 8,117 条。为了控制成本，我先按 `normalized_text` 去重，得到 13,592 条代表文本。空评论、极短评论、高置信关键词评论走 Rule Engine；短但有明确业务信息的评论走 Small LLM batch；长文本、多问题、Small LLM 低置信或校验失败的样本才升级到 Large LLM。
+
+本次 full live 中，初始路由为 Rule Engine 7,554 条、Small LLM 4,836 条、Large LLM 1,202 条。实际 method 统计里，Small/Large LLM 成功返回 3,525 条，另有 2,513 条进入 offline fallback 或人工复核路径。
 
 ### Prompt 设计的关键决策
 
-（请填写）
+Prompt 的核心约束是“只基于原文证据抽取”。模型必须输出固定 JSON schema，`category/subcategory` 只能从预定义标签里选，`evidence` 必须是葡萄牙语原文中的连续片段，不能把英文翻译当证据。对于信息不足的短评，不允许模型猜测物流、商品或卖家责任，而是输出 `general.unclear` 或 `needs_manual_review=true`。葡萄牙语不单独调用翻译模型，由 LLM 在同一次结构化输出中补 `evidence_quote_en`，减少额外调用和对齐误差。
 
 ### 成本数据
-- 实际花费：$__
-- 总 token 数：__
-- 单条评论平均成本：$__
-- 如果不做分流（全部用 GPT-4），成本预估：$__
+- 实际花费：14 RMB（DeepSeek 后台账单；低于 $3 预算）
+- 总 token 数：2,874,384（服务端返回输入 612,111，输出 2,262,273）
+- 单条评论平均成本：约 0.00062 RMB / 条低分评论，或 0.00103 RMB / 条去重文本
+- 如果不做分流（全部用 GPT-4）：没有实测；按本次 token 规模和不去重的 22,754 条评论估算，会明显高于 14 RMB，并且很容易超过 $3 预算
 
 ### 准确率评估
 > 你是怎么知道自己抽取得对不对？
 
-**评估方法**：
+**评估方法**：从 live full run 输出中做 3 轮 repeated 30-sample validation batches。每轮 Rule Engine、Small LLM、Large LLM 各抽 10 条，三轮共 90 条，不重复。抽样时先筛选 `method in (rule, small_llm, large_llm)` 且 `raw_text` 非空，再按 `review_id + raw_text` 的稳定 hash 排序，保证可复现。人工标注时只看 `raw_text`，再对比模型输出的分类、evidence、漏召回、幻觉和 actionable 判断。
 
-**实测准确率**：__%
+**实测准确率**：88.9%（80 / 90）
 
-**幻觉率（LLM 编造原文没有的问题）**：__%
+**幻觉率（LLM 编造原文没有的问题）**：5.3%（6 / 114 个输出 issue）
+
+补充指标：evidence 合规率 92.1%（105 / 114），漏召回率 11.3%（13 / 115），actionable 判断准确率 95.6%（86 / 90）。分层看，Rule Engine 是主要短板：幻觉率 15.8%，漏召回率 27.0%；Small LLM 和 Large LLM 的 evidence 合规率分别为 97.0% 和 95.3%，90 条样本中没有发现 LLM 路径的明显幻觉问题。
 
 ---
 

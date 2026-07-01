@@ -963,16 +963,25 @@ def build_cost_report(payload: dict[str, Any]) -> str:
 """
 
 
-def write_cost_report(path: Path, payload: dict[str, Any]) -> None:
-    path.write_text(build_cost_report(payload), encoding="utf-8")
+def write_text_unless_exists(path: Path, content: str, overwrite: bool) -> bool:
+    if path.exists() and not overwrite:
+        try:
+            display_path = path.relative_to(ROOT_DIR)
+        except ValueError:
+            display_path = path
+        print(f"[SKIP] 已保留现有报告：{display_path}")
+        return False
+    path.write_text(content, encoding="utf-8")
+    return True
 
 
+def write_cost_report(path: Path, payload: dict[str, Any], overwrite: bool = False) -> bool:
+    return write_text_unless_exists(path, build_cost_report(payload), overwrite)
 
 
-def write_accuracy_evaluation(path: Path, payload: dict[str, Any]) -> None:
+def build_accuracy_evaluation(payload: dict[str, Any]) -> str:
     route_counts = payload["metadata"]["route_counts"]
-    path.write_text(
-        f"""# Q4 准确率评估方法
+    return f"""# Q4 准确率评估方法
 
 由于 Olist 评论没有现成 ground truth，本模块采用分层抽样人工评估，而不是只随机抽样最终结果。建议从输出中抽 30 条：
 
@@ -998,9 +1007,11 @@ def write_accuracy_evaluation(path: Path, payload: dict[str, Any]) -> None:
 - 漏召回率 = 漏掉主要问题的条数 / 抽样条数。
 
 如果规则误判集中出现，优先修正规则；如果 evidence 不合规集中出现在 LLM 路径，优先收紧 prompt 和 schema 校验，而不是直接升级模型。
-""",
-        encoding="utf-8",
-    )
+"""
+
+
+def write_accuracy_evaluation(path: Path, payload: dict[str, Any], overwrite: bool = False) -> bool:
+    return write_text_unless_exists(path, build_accuracy_evaluation(payload), overwrite)
 
 
 def run_pipeline(
@@ -1015,6 +1026,7 @@ def run_pipeline(
     live_sample_size: int | None = None,
     llm_concurrency: int = 8,
     write_docs: bool = True,
+    overwrite_docs: bool = False,
 ) -> dict[str, Any]:
     load_dotenv_if_available()
     resolved_small_model = small_model or default_small_model(provider)
@@ -1077,8 +1089,8 @@ def run_pipeline(
 
     write_json(output_path, payload)
     if write_docs:
-        write_cost_report(DEFAULT_COST_REPORT_PATH, payload)
-        write_accuracy_evaluation(DEFAULT_ACCURACY_PATH, payload)
+        write_cost_report(DEFAULT_COST_REPORT_PATH, payload, overwrite=overwrite_docs)
+        write_accuracy_evaluation(DEFAULT_ACCURACY_PATH, payload, overwrite=overwrite_docs)
 
     return payload
 
@@ -1105,6 +1117,11 @@ def parse_args() -> argparse.Namespace:
         default=int(os.getenv("Q4_LIVE_SAMPLE_SIZE", "30")),
         help="live 模式抽样验证模型路径；传 0 表示全量 live，不抽样。offline 模式忽略该参数。",
     )
+    parser.add_argument(
+        "--overwrite-docs",
+        action="store_true",
+        help="允许重新生成并覆盖 cost_report.md 和 accuracy_evaluation.md；默认保留已有手工报告。",
+    )
     return parser.parse_args()
 
 
@@ -1124,6 +1141,7 @@ def main() -> int:
         max_cost_usd=None if args.no_cost_limit else args.max_cost_usd,
         live_sample_size=args.live_sample_size if args.mode == "live" else None,
         llm_concurrency=args.llm_concurrency,
+        overwrite_docs=args.overwrite_docs,
     )
     metadata = payload["metadata"]
     print(

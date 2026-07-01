@@ -59,6 +59,7 @@ run_all_*.log
 q3_etl_pipeline/outputs/*.parquet
 q3_etl_pipeline/pipeline_log.txt
 !q3_etl_pipeline/outputs/.gitkeep
+q4_llm_extraction/report_backups/
 
 # ============================================================
 # 密钥（绝对不要提交）
